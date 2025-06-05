@@ -1,71 +1,50 @@
 # Local News MCP Server
 
-A Model Context Protocol (MCP) server for accessing local news data through the NewsCatcher Local News API. This proof-of-concept enables Claude Desktop to search for and retrieve location-specific news articles.
+**Get location-specific news through natural conversation with Claude Desktop.**
 
-## Features
+Transform simple questions into sophisticated news searches with automatic query enhancement and intelligent clustering.
 
-- **News Search**: Search for articles using advanced queries with boolean operators and location filtering.
-- **Latest Headlines**: Get the most recent news headlines for specific locations.
-- **Location-Aware**: Filter news by cities, states, or regions.
-- **Theme Filtering**: Filter articles by categories (Business, Tech, Politics, Sports, etc.).
-- **Rich Formatting**: Articles include summaries, locations, and source information.
+## ✨ What You Can Ask
 
-## Prerequisites
+Once connected, you can have natural conversations about local news:
 
-- Python 3.13+
-- [uv](https://docs.astral.sh/uv/) package manager
-- NewsCatcher API key ([get one here](https://www.newscatcherapi.com/pricing))
+- *"What's the latest news about tech layoffs in San Francisco?"*
+- *"Show me recent housing market updates in Los Angeles"*
+- *"Find news about port disruptions affecting shipping"*
+- *"What's happening with real estate in Miami?"*
+- *"Any recent business news from Seattle?"*
+
+The server automatically enhances your questions, reduces duplicate stories, and finds the most relevant locations.
+
+## 🚀 Quick Setup
+
+### Prerequisites
+
 - Claude Desktop
+- NewsCatcher API key ([get free key](https://www.newscatcherapi.com/pricing))
+- Python 3.13+ and [uv](https://docs.astral.sh/uv/)
 
-## Quick Start
-
-### 1. Setup Environment
+### Installation
 
 ```bash
-# Clone the repository
+# 1. Clone and setup
 git clone https://github.com/oleksandrsirenko/local-news-mcp.git
 cd local-news-mcp
-
-# Create virtual environment and install dependencies
-uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+uv venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
 uv sync
-```
 
-### 2. Configure API Key
-
-```bash
-# Copy the example environment file
+# 2. Add your API key
 cp .env.example .env
+# Edit .env: LOCAL_NEWS_API_KEY=your_actual_api_key_here
 
-# Edit .env and add your NewsCatcher API key
-# LOCAL_NEWS_API_KEY=your_actual_api_key_here
-```
-
-### 3. Test the Server
-
-```bash
-# Run the server locally to test
+# 3. Test it works
 uv run main.py
 ```
 
-### 4. Configure Claude Desktop
+### Claude Desktop Configuration
 
-Create or modify the Claude Desktop configuration file:
-
-**macOS:**
-
-```bash
-code ~/Library/Application\ Support/Claude/claude_desktop_config.json
-```
-
-**Windows:**
-
-```powershell
-code $env:AppData\Claude\claude_desktop_config.json
-```
-
-Add this configuration:
+**macOS:** `~/Library/Application\ Support/Claude/claude_desktop_config.json`  
+**Windows:** `%AppData%\Claude\claude_desktop_config.json`
 
 ```json
 {
@@ -74,7 +53,7 @@ Add this configuration:
       "command": "uv",
       "args": [
         "--directory",
-        "/absolute/path/to/local_news_mcp",
+        "/absolute/path/to/local-news-mcp",
         "run",
         "main.py"
       ],
@@ -86,115 +65,76 @@ Add this configuration:
 }
 ```
 
->**Important**: Replace `"/absolute/path/to/local_news_mcp"` with the full path to your project directory. You can find this by running `pwd` in your terminal when in the project directory.
+**Important:** Replace `/absolute/path/to/local-news-mcp` with your actual project path.
 
-### 5. Use with Claude Desktop
+### Restart Claude Desktop
 
-Restart Claude Desktop completely. Click Seach and tools button and ensure local-news-mcp tool is enabled.
+Completely quit and restart Claude Desktop. Look for the 🔌 icon to confirm connection.
 
-Try these example queries:
+## 🔧 How It Works
 
-- "What's the latest news in San Francisco?"
-- "Show me business news from New York City in the last 7 days"
-- "Search for articles about port disruptions in California"
+1. **You ask a simple question** in natural language
+2. **Claude automatically enhances your query** using domain expertise
+3. **Intelligent clustering** shows diverse stories instead of duplicates
+4. **Location detection** finds the most relevant geographic areas
+5. **Rich results** include summaries, sentiment, themes, and source confidence
 
-## Available Tools
+## 🛠 Troubleshooting
 
-### `search_news`
+### "spawn uv ENOENT" Error
 
-Search for news articles with advanced query capabilities.
+Find your uv path and use it in config:
 
-**Parameters**:
-
-- `q`: Search query with boolean operators (AND, OR, NOT) and wildcards
-- `locations`: List of locations (e.g., ["San Francisco, California"])  
-- `from_`: Start date (e.g., "7d", "7 days ago", "2025-01-01")
-- `theme`: News category filter
-- `page_size`: Number of results (1-1000, default: 10)
-
-### `get_latest_headlines`
-
-Get recent headlines for specific locations.
-
-**Parameters**:
-
-- `locations`: List of locations
-- `when`: Time period (e.g., "7d", "24h")
-- `theme`: News category filter  
-- `page_size`: Number of results (1-1000, default: 10)
-
-## Query Examples
-
-### Advanced Search Syntax
-
-- Exact phrases: `\"artificial intelligence\"`
-- Boolean operators: `Tesla AND "Elon Musk"`
-- Wildcards: `elect*` (finds election, electoral, etc.)
-- Complex queries: `(Apple OR Google) AND smartphone NOT lawsuit`
-
-### Location Formats
-
-**Pattern:** "City, Administrative Unit" or "Administrative Unit"
-
-**Examples:**
-
-- US: "San Francisco, California" or "California"
-- Canada: "Toronto, Ontario" or "Ontario"
-- UK: "Manchester, Greater Manchester" or "Greater Manchester"
-
-## Troubleshooting
-
-### Handle "spawn uv ENOENT" error
-
-If you encounter the "spawn uv ENOENT" error, find the full path to your uv executable with `which uv` and use that path instead:
-
-```json
-{
-  "mcpServers": {
-    "local-news": {
-      "command": "/full/path/to/uv",
-      "args": [
-        "--directory",
-        "/absolute/path/to/local_news_mcp",
-        "run",
-        "main.py"
-      ],
-      "env": {
-        "LOCAL_NEWS_API_KEY": "your_api_key_here"
-      }
-    }
-  }
-}
+```bash
+which uv  # Use this full path in Claude config
 ```
 
-### MCP server is not available
+### Server Not Connecting
 
-If the local-news server isn't connecting:
+1. Verify API key in `.env` file
+2. Check absolute path in Claude configuration  
+3. Restart Claude Desktop completely
+4. Check logs: `tail -f ~/Library/Logs/Claude/mcp*.log`
 
-1. Check Claude Desktop logs: `tail -n 20 -f ~/Library/Logs/Claude/mcp*.log`
-2. Verify your API key is correct
-3. Make sure the path to your script is absolute
-4. Restart Claude Desktop completely
+### No Results or Poor Quality
 
-## Development
+The server automatically optimizes queries, but you can be more specific:
 
-This is a proof-of-concept implementation. For production use, consider:
+- *"Business news in downtown Seattle"* (more specific location)
+- *"Tech startup funding in Silicon Valley"* (specific domain + location)
+- *"Real estate prices in Miami last week"* (timeframe)
 
-- Better error handling and logging
-- Rate limiting and caching
-- Configuration management
-- Enhanced article formatting
-- Additional MCP tools, prompts and resources
+## 🏗 Development
 
-## License
+```bash
+# Run development server
+uv run mcp dev main.py
 
-MIT License - see LICENSE file for details.
+# Install in Claude Desktop for testing
+uv run mcp install main.py --name "local-news-dev"
+```
 
-## Contributing
+## 🌐 API Reference
 
-This is a proof-of-concept project. For the production-ready version, please check back later or contact the maintainer.
+Built on [NewsCatcher Local News API](https://www.newscatcherapi.com/docs/v3/local-news) with intelligent query enhancement and clustering.
 
-## Documentation
+**Location Detection Methods:**
 
-- [Local News API](https://www.newscatcherapi.com/docs/v3/local-news/overview/introduction)
-- [Advanced querying techniques](https://www.newscatcherapi.com/docs/v3/documentation/guides-and-concepts/advanced-querying)
+- `dedicated_source`: Exclusive local coverage (highest confidence)
+- `local_section`: Location-specific news sections 
+- `standard_format`: "City, State" mentions
+- `proximity_mention`: Geographic terms within 15 words
+- `ai_extracted`: AI-detected locations (premium feature)
+- `regional_source`: Regional publication context
+
+**Available Themes:**
+
+Business, Economics, Entertainment, Finance, Health, Politics, Science, Sports, Tech, Crime, Lifestyle, Travel, General
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## 🤝 Contributing
+
+This server demonstrates advanced MCP capabilities including intelligent query processing, clustering, and domain expertise. Contributions welcome for additional domains and enhancement strategies.
