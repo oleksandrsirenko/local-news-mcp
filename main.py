@@ -16,6 +16,16 @@ from prompts import (
     create_competitive_analysis_prompt,
 )
 
+# Import formatting utilities
+from utils import format_search_results_simple
+
+# Import clustering utilities
+from utils.clustering import (
+    fetch_all_clustered_pages,
+    extract_cluster_representatives,
+    get_cluster_analysis,
+)
+
 load_dotenv()
 mcp = FastMCP("local-news")
 
@@ -54,14 +64,16 @@ def get_workflow_guide() -> str:
             return f.read()
     except Exception as e:
         print(f"Error loading workflow guide: {e}")
-        return """# Local News MCP Workflow Guide
+        return """
+            # Local News MCP Workflow Guide
 
-## Basic Usage
-1. Use 'enhance-query' prompt with simple input
-2. Use 'intelligent_search' tool with enhanced parameters
-3. Use 'search_news' for direct queries
+            ## Basic Usage
+            1. Use 'enhance-query' prompt with simple input
+            2. Use 'intelligent_search' tool with enhanced parameters
+            3. Use 'search_news' for direct queries
 
-See documentation for complete guide."""
+            See documentation for complete guide.
+            """
 
 
 # === PROMPTS ===
@@ -139,17 +151,6 @@ async def make_news_request(endpoint: str, payload: dict) -> dict[str, Any] | No
             return None
 
 
-# Import utilities
-from utils import (
-    format_article_simple,
-    format_search_results_simple,
-    format_search_results_enhanced,
-    format_clustered_results,
-    extract_cluster_representatives,
-    should_use_clustering,
-)
-
-
 # === TOOLS ===
 @mcp.tool()
 async def intelligent_search(
@@ -157,33 +158,40 @@ async def intelligent_search(
     locations: List[str] = None,
     theme: Optional[str] = None,
     detection_methods: List[str] = None,
-    from_: str = "7 days ago",
-    page_size: int = 10,
-    enable_clustering: Optional[bool] = None,
-    show_enhancement: bool = False,
+    from_: str = "7d",
+    max_clusters: int = 50,
+    max_pages: int = 8,
+    page_size: int = 1000,
+    clustering: bool = True,
     original_query: str = "",
-) -> str:
-    """Execute search with pre-enhanced query and intelligent clustering.
-
-    This is the primary tool for enhanced searches. It accepts sophisticated queries
-    that have been processed through the enhancement prompts and intelligently
-    applies clustering to reduce duplicates and show diverse stories.
+) -> dict:
+    """Execute search with configurable clustering and pagination.
 
     Args:
         enhanced_query: Advanced search query with boolean operators from enhancement prompt.
                        Should include sophisticated syntax like exact phrases in quotes,
                        boolean operators (AND, OR, NOT), and domain-specific terminology.
         locations: List of locations in "City, State" or "State" format (e.g. ["San Francisco, California", "New York City, New York"], ["California", "Texas"]).
-        from_: Start date for search (e.g. "7 days ago" or "2023-01-01"). Limited to 30 days maximum.
         theme: Filter by theme (Business, Economics, Entertainment, Finance, Health, Politics, Science, Sports, Tech, Crime, Lifestyle, Travel, General)
-        page_size: Number of articles to return (1-1000, default: 10)
         detection_methods: Location detection methods for filtering. Options: ["dedicated_source", "local_section", "standard_format", "proximity_mention", "ai_extracted", "regional_source"]
-        enable_clustering: Control clustering behavior. None=auto-detect, True=force clustering for diverse stories, False=disable clustering
-        show_enhancement: Whether to display original vs enhanced query comparison
-        original_query: Original user input before enhancement (used with show_enhancement)
+        from_: Start date for search (e.g. "30 days ago", "7d", or "2023-01-01"). Limited to 30 days maximum.
+        max_clusters: Maximum number of cluster representatives to return (1-100).
+        max_pages: Maximum pages to fetch for pagination (1-10).
+        page_size: Articles per API page (1-1000, default: 1000 for best clustering).
+        clustering: Enable clustering (default: True for diverse results).
+        original_query: Original user input before enhancement.
+
+    Returns:
+        Dict with structured search results for MCP client analysis.
     """
-    # Build search payload
-    payload = {"q": enhanced_query, "from_": from_, "page_size": page_size}
+
+    # Build search payload with configurable parameters
+    payload = {
+        "q": enhanced_query,
+        "from_": from_,
+        "page_size": page_size,
+        "clustering": clustering,
+    }
 
     if locations:
         payload["locations"] = locations
@@ -192,41 +200,111 @@ async def intelligent_search(
     if detection_methods:
         payload["detection_methods"] = detection_methods
 
-    # Intelligent clustering decision
-    if enable_clustering is None:
-        # Auto-detect whether clustering should be used
-        use_clustering = should_use_clustering(enhanced_query, page_size)
+    # Fetch results - handle both clustered and non-clustered
+    try:
+        if clustering:
+            # Use pagination for clustered results
+            combined_data = await fetch_all_clustered_pages(
+                make_news_request, payload, max_pages=max_pages
+            )
+        else:
+            # Single request for non-clustered results
+            combined_data = await make_news_request("/api/search", payload)
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Search request failed: {str(e)}",
+            "query_info": {
+                "original_query": original_query,
+                "enhanced_query": enhanced_query,
+                "clustering_enabled": clustering,
+            },
+        }
+
+    if not combined_data:
+        return {
+            "success": False,
+            "error": "No results found",
+            "query_info": {
+                "original_query": original_query,
+                "enhanced_query": enhanced_query,
+                "clustering_enabled": clustering,
+            },
+        }
+
+    # Process results based on clustering mode
+    if clustering and combined_data.get("clusters"):
+        # Clustered results processing
+        cluster_representatives = extract_cluster_representatives(
+            combined_data, max_representatives=max_clusters
+        )
+        cluster_analysis = get_cluster_analysis(combined_data)
+
+        return {
+            "success": True,
+            "search_type": "clustered",
+            "query_info": {
+                "original_query": original_query,
+                "enhanced_query": enhanced_query,
+                "clustering_enabled": True,
+            },
+            "results": {
+                "total_hits": combined_data.get("total_hits", 0),
+                "total_clusters": len(combined_data.get("clusters", {})),
+                "clusters_returned": len(cluster_representatives),
+                "articles_processed": combined_data.get("pagination_info", {}).get(
+                    "total_articles_processed", 0
+                ),
+                "coverage_percentage": cluster_analysis.get("coverage_percentage", 0),
+                "cluster_representatives": cluster_representatives,
+            },
+            "clustering_analysis": cluster_analysis,
+            "pagination_info": combined_data.get("pagination_info", {}),
+            "metadata": {
+                "search_params": {
+                    "locations": locations,
+                    "theme": theme,
+                    "detection_methods": detection_methods,
+                    "from": from_,
+                    "page_size": page_size,
+                    "max_pages_used": max_pages,
+                },
+                "pages_fetched": combined_data.get("pagination_info", {}).get(
+                    "pages_fetched", 1
+                ),
+                "total_pages_available": combined_data.get("total_pages", 1),
+            },
+        }
     else:
-        use_clustering = enable_clustering
+        # Non-clustered results processing
+        articles = combined_data.get("articles", [])
 
-    if use_clustering:
-        payload["clustering"] = True
-        # Increase page_size for clustering to get more diverse results
-        payload["page_size"] = min(1000, max(50, page_size * 5))
-
-    # Execute search
-    data = await make_news_request("/api/search", payload)
-
-    if not data:
-        return "Search request failed. Please check your query and try again."
-
-    # Prepare enhancement info
-    enhancement_info = None
-    if show_enhancement and original_query:
-        enhancement_info = {"original": original_query, "enhanced": enhanced_query}
-
-    # Process results based on clustering
-    if use_clustering and data.get("clusters"):
-        # Extract cluster representatives (one per cluster)
-        cluster_representatives = extract_cluster_representatives(data)
-
-        # Limit to requested page size
-        cluster_representatives = cluster_representatives[:page_size]
-
-        return format_clustered_results(data, cluster_representatives, enhancement_info)
-    else:
-        # Standard formatting for non-clustered results
-        return format_search_results_enhanced(data, enhancement_info)
+        return {
+            "success": True,
+            "search_type": "standard",
+            "query_info": {
+                "original_query": original_query,
+                "enhanced_query": enhanced_query,
+                "clustering_enabled": False,
+            },
+            "results": {
+                "total_hits": combined_data.get("total_hits", 0),
+                "articles_returned": len(articles),
+                "articles": articles[:max_clusters],  # Limit articles if needed
+            },
+            "metadata": {
+                "search_params": {
+                    "locations": locations,
+                    "theme": theme,
+                    "detection_methods": detection_methods,
+                    "from": from_,
+                    "page_size": page_size,
+                },
+                "page": combined_data.get("page", 1),
+                "total_pages": combined_data.get("total_pages", 1),
+            },
+        }
 
 
 @mcp.tool()
