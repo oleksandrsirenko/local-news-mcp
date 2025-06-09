@@ -79,6 +79,61 @@ Completely quit and restart Claude Desktop. Look for the 🔌 icon to confirm co
 4. **Location detection** finds the most relevant geographic areas
 5. **Rich results** include summaries, sentiment, themes, and source confidence
 
+## 🧩 MCP Server Components
+
+This server provides three types of MCP primitives, each with different usage patterns in Claude Desktop:
+
+### 🔧 **Tools** (Model-Controlled)
+
+Claude can automatically use these tools to fetch and analyze news data during conversations.
+
+**Available Tools:**
+
+- `intelligent_search` - Advanced search with clustering and comprehensive coverage
+- `search_news` - Direct search with user-provided queries  
+- `get_latest_headlines` - Recent headlines for specific locations
+
+*Usage: Claude decides when to use these tools based on your questions. No manual selection is needed.*
+
+### 📖 **Prompts** (User-Controlled)
+
+These help you start conversations and provide structured guidance to Claude.
+
+**Available Prompts:**
+
+- `enhance-query` - Transform simple input into sophisticated search queries.
+- `analyze-search-intent` - Understand what you're looking for.
+- `workflow-guidance` - Get recommendations for different research approaches.
+- `domain-expertise` - Get specialized help for business, tech, politics, etc.
+- `competitive-analysis` - Design monitoring strategies for companies.
+
+*Usage: Click the + button in Claude and select these prompts to start enhanced workflows.*
+
+### 📋 **Resources** (Application-Controlled)
+
+Reference materials that Claude can use for context when helping you.
+
+**Available Resources:**
+
+- `knowledge://query-syntax` - Advanced query construction guide
+- `guide://workflow` - Complete usage guide and best practices
+
+*Usage: Claude Desktop requires you to explicitly add these before Claude can reference them. Click + and select them when you need query syntax help or usage guidance.*
+
+### **How to Use in Claude Desktop**
+
+1. **For Quick Questions**: Just ask naturally - Claude will use tools automatically
+   - *"What's happening with tech layoffs in San Francisco?"*
+
+2. **For Enhanced Research**: Start with a prompt
+   - Click **+** → Select `enhance-query` → Enter simple topic
+   - Use the enhanced query with Claude's automatic tool usage
+
+3. **For Complex Analysis**: Combine prompts and resources
+   - Add `guide://workflow` resource for methodology guidance
+   - Use `domain-expertise` prompt for specialized research
+   - Ask follow-up questions - Claude will use tools automatically
+
 ## 🛠 Troubleshooting
 
 ### "spawn uv ENOENT" Error

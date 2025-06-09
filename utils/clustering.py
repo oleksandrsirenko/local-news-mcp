@@ -1,275 +1,216 @@
-"""Clustering utilities for Local News MCP server.
+"""Simplified clustering utilities with pagination for Local News MCP server.
 
-This module provides utilities for processing clustered search results,
-extracting cluster representatives, and determining when to use clustering.
+This module always uses clustering with pagination to ensure comprehensive
+results for MCP clients. Keeps it simple - just fetch data and return it.
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Tuple
+import math
+import logging
+
+logger = logging.getLogger(__name__)
 
 
-def should_use_clustering(
-    query: str, page_size: int, estimated_results: Optional[int] = None
-) -> bool:
-    """Determine if clustering should be enabled based on query characteristics.
-
-    Args:
-        query: The search query
-        page_size: Number of results requested
-        estimated_results: Estimated number of results (if known)
-
-    Returns:
-        Boolean indicating whether clustering should be used
-    """
-    # Always use clustering for larger result sets
-    if page_size >= 50:
-        return True
-
-    # Use clustering for broad, general queries that might have duplicates
-    broad_terms = [
-        "layoffs",
-        "merger",
-        "acquisition",
-        "funding",
-        "investment",
-        "policy",
-        "regulation",
-        "crisis",
-        "shortage",
-        "disruption",
-        "fire",
-        "flood",
-        "earthquake",
-        "storm",
-        "accident",
-        "breakthrough",
-        "launch",
-        "partnership",
-        "deal",
-    ]
-
-    query_lower = query.lower()
-    for term in broad_terms:
-        if term in query_lower:
-            return True
-
-    # Use clustering if query is short and likely to return many similar results
-    # Count actual search terms (excluding operators)
-    import re
-
-    search_terms = re.findall(r"\b[a-zA-Z]+\b", query)
-    meaningful_terms = [
-        term
-        for term in search_terms
-        if term.lower() not in ["and", "or", "not", "near"]
-    ]
-
-    if len(meaningful_terms) <= 3:
-        return True
-
-    return False
-
-
-def extract_cluster_representatives(data: dict) -> List[Dict[str, Any]]:
-    """Extract the top representative article from each cluster.
+async def fetch_all_clustered_pages(
+    api_request_func, base_payload: dict, max_pages: int = 5
+) -> Dict[str, Any]:
+    """Fetch multiple pages of clustered results for comprehensive coverage.
 
     Args:
-        data: API response data with clustering information
+        api_request_func: Async function to make API requests
+        base_payload: Base request payload
+        max_pages: Maximum number of pages to fetch (default: 5)
 
     Returns:
-        List of cluster representatives with metadata
+        Combined clusters data with pagination info
     """
-    if not data.get("clusters"):
+    all_clusters = {}
+    total_articles_processed = 0
+    first_page_metadata = None
+
+    for page_num in range(1, max_pages + 1):
+        # Create payload for this page
+        page_payload = {**base_payload, "page": page_num}
+
+        # Make API request
+        page_data = await api_request_func("/api/search", page_payload)
+
+        if not page_data or not page_data.get("clusters"):
+            break
+
+        # Store metadata from first page
+        if page_num == 1:
+            first_page_metadata = {
+                "status": page_data.get("status"),
+                "total_hits": page_data.get("total_hits", 0),
+                "total_pages": page_data.get("total_pages", 1),
+                "page_size": page_data.get("page_size", 1000),
+            }
+
+            # If only one page, just return it
+            if first_page_metadata["total_pages"] <= 1:
+                return page_data
+
+        # Process clusters from this page
+        page_clusters = page_data.get("clusters", {})
+        articles_this_page = 0
+
+        for cluster_id, cluster_data in page_clusters.items():
+            articles_in_cluster = len(cluster_data.get("articles", []))
+            articles_this_page += articles_in_cluster
+
+            if cluster_id in all_clusters:
+                # Merge articles from same cluster across pages
+                existing_articles = all_clusters[cluster_id]["articles"]
+                new_articles = cluster_data["articles"]
+
+                # Deduplicate by URL
+                seen_urls = {article.get("link", "") for article in existing_articles}
+                unique_new_articles = [
+                    article
+                    for article in new_articles
+                    if article.get("link", "") not in seen_urls
+                ]
+
+                all_clusters[cluster_id]["articles"].extend(unique_new_articles)
+            else:
+                # New cluster
+                all_clusters[cluster_id] = cluster_data
+
+        total_articles_processed += articles_this_page
+
+        # Stop if we've reached the last page
+        if page_num >= first_page_metadata.get("total_pages", 1):
+            break
+
+    # Combine results
+    combined_data = {
+        "status": first_page_metadata["status"] if first_page_metadata else "ok",
+        "total_hits": (
+            first_page_metadata["total_hits"]
+            if first_page_metadata
+            else total_articles_processed
+        ),
+        "total_pages": first_page_metadata["total_pages"] if first_page_metadata else 1,
+        "page_size": first_page_metadata["page_size"] if first_page_metadata else 1000,
+        "clusters_count": len(all_clusters),
+        "clusters": all_clusters,
+        "pagination_info": {
+            "pages_fetched": page_num,
+            "total_articles_processed": total_articles_processed,
+            "unique_clusters": len(all_clusters),
+        },
+    }
+
+    return combined_data
+
+
+def extract_cluster_representatives(
+    combined_data: dict, max_representatives: int = 50
+) -> List[Dict[str, Any]]:
+    """Extract top cluster representatives for MCP client.
+
+    Args:
+        combined_data: Combined clusters data
+        max_representatives: Maximum number of representatives to return
+
+    Returns:
+        List of cluster representatives with full article data
+    """
+    if not combined_data.get("clusters"):
         return []
 
     representatives = []
-    clusters = data["clusters"]
+    clusters = combined_data["clusters"]
 
-    # Sort clusters by the score of their top article (descending)
-    sorted_cluster_ids = sorted(
-        clusters.keys(),
-        key=lambda cluster_id: (
-            max(article.get("score", 0) for article in clusters[cluster_id]["articles"])
-            if clusters[cluster_id]["articles"]
-            else 0
-        ),
-        reverse=True,
-    )
+    # Calculate quality metrics for each cluster
+    cluster_metrics = []
 
-    for cluster_id in sorted_cluster_ids:
-        cluster_data = clusters[cluster_id]
-        articles = cluster_data["articles"]
-
+    for cluster_id, cluster_data in clusters.items():
+        articles = cluster_data.get("articles", [])
         if not articles:
             continue
 
-        # Get the top article from this cluster (highest score)
+        cluster_size = len(articles)
         top_article = max(articles, key=lambda x: x.get("score", 0))
+        avg_score = sum(article.get("score", 0) for article in articles) / cluster_size
 
-        # Add cluster metadata to the article
-        top_article["cluster_id"] = cluster_id
-        top_article["cluster_rank"] = 1  # This is the top article in its cluster
+        # Simple quality score: article quality + cluster size bonus
+        quality_score = (
+            top_article.get("score", 0) * 0.7  # Article quality (70%)
+            + math.log(cluster_size + 1) * 0.3  # Cluster size bonus (30%)
+        )
 
-        representatives.append(
+        cluster_metrics.append(
             {
                 "cluster_id": cluster_id,
-                "article": top_article,
-                "cluster_size": len(articles),
-                "cluster_score": top_article.get("score", 0),
+                "cluster_size": cluster_size,
+                "quality_score": quality_score,
+                "top_article": top_article.copy(),
+                "avg_score": avg_score,
             }
         )
 
-    # Sort representatives by cluster score (descending)
-    representatives.sort(key=lambda x: x["cluster_score"], reverse=True)
+    # Sort by quality score (best first)
+    cluster_metrics.sort(key=lambda x: x["quality_score"], reverse=True)
+
+    # Extract representatives
+    for i, cluster_info in enumerate(cluster_metrics[:max_representatives]):
+        article = cluster_info["top_article"].copy()
+
+        # Add cluster context to article
+        article["cluster_metadata"] = {
+            "cluster_id": cluster_info["cluster_id"],
+            "cluster_rank": i + 1,
+            "cluster_size": cluster_info["cluster_size"],
+            "cluster_quality_score": cluster_info["quality_score"],
+        }
+
+        representatives.append(
+            {
+                "cluster_id": cluster_info["cluster_id"],
+                "cluster_rank": i + 1,
+                "cluster_size": cluster_info["cluster_size"],
+                "cluster_score": cluster_info["quality_score"],
+                "article": article,
+            }
+        )
 
     return representatives
 
 
-def format_cluster_summary(data: dict) -> str:
-    """Generate a summary of clustering information.
+def get_cluster_analysis(combined_data: dict) -> Dict[str, Any]:
+    """Get basic cluster analysis for MCP client.
 
     Args:
-        data: API response data with clustering information
+        combined_data: Combined clusters data
 
     Returns:
-        Formatted string with clustering summary
+        Basic cluster statistics
     """
-    if not data.get("clusters"):
-        return "No clustering information available."
+    clusters = combined_data.get("clusters", {})
 
-    total_hits = data.get("total_hits", 0)
-    clusters_count = data.get("clusters_count", 0)
-    clusters = data.get("clusters", {})
+    if not clusters:
+        return {"total_clusters": 0}
 
-    # Calculate cluster size distribution
-    cluster_sizes = [len(cluster["articles"]) for cluster in clusters.values()]
-
-    if cluster_sizes:
-        avg_cluster_size = sum(cluster_sizes) / len(cluster_sizes)
-        max_cluster_size = max(cluster_sizes)
-        min_cluster_size = min(cluster_sizes)
-    else:
-        avg_cluster_size = max_cluster_size = min_cluster_size = 0
-
-    summary = f"""Clustering Summary:
-Total Articles: {total_hits:,}
-Total Clusters: {clusters_count}
-Average Cluster Size: {avg_cluster_size:.1f} articles
-Largest Cluster: {max_cluster_size} articles
-Smallest Cluster: {min_cluster_size} articles
-
-This means the API found {clusters_count} distinct stories/events,
-with an average of {avg_cluster_size:.1f} articles covering each story."""
-
-    return summary
-
-
-def get_cluster_themes_distribution(data: dict) -> Dict[str, int]:
-    """Analyze theme distribution across clusters.
-
-    Args:
-        data: API response data with clustering information
-
-    Returns:
-        Dictionary mapping themes to cluster counts
-    """
-    if not data.get("clusters"):
-        return {}
-
-    theme_counts = {}
-    clusters = data["clusters"]
-
-    for cluster_data in clusters.values():
-        articles = cluster_data["articles"]
-        if not articles:
-            continue
-
-        # Get themes from the top article in the cluster
-        top_article = max(articles, key=lambda x: x.get("score", 0))
-        themes = top_article.get("nlp", {}).get("theme", [])
-
-        for theme in themes:
-            theme_counts[theme] = theme_counts.get(theme, 0) + 1
-
-    return theme_counts
-
-
-def get_cluster_location_distribution(data: dict) -> Dict[str, int]:
-    """Analyze location distribution across clusters.
-
-    Args:
-        data: API response data with clustering information
-
-    Returns:
-        Dictionary mapping locations to cluster counts
-    """
-    if not data.get("clusters"):
-        return {}
-
-    location_counts = {}
-    clusters = data["clusters"]
-
-    for cluster_data in clusters.values():
-        articles = cluster_data["articles"]
-        if not articles:
-            continue
-
-        # Get locations from the top article in the cluster
-        top_article = max(articles, key=lambda x: x.get("score", 0))
-        locations = top_article.get("locations", [])
-
-        for location in locations:
-            location_name = location.get("name", "Unknown")
-            location_counts[location_name] = location_counts.get(location_name, 0) + 1
-
-    return location_counts
-
-
-def analyze_cluster_quality(data: dict) -> Dict[str, Any]:
-    """Analyze the quality and characteristics of clustering results.
-
-    Args:
-        data: API response data with clustering information
-
-    Returns:
-        Dictionary with clustering quality metrics
-    """
-    if not data.get("clusters"):
-        return {"error": "No clustering data available"}
-
-    clusters = data["clusters"]
-    total_articles = sum(len(cluster["articles"]) for cluster in clusters.values())
-    cluster_count = len(clusters)
-
-    # Calculate clustering efficiency
-    if total_articles > 0:
-        clustering_efficiency = cluster_count / total_articles
-        diversity_score = min(
-            1.0, cluster_count / 20
-        )  # Normalize to 0-1, good if 20+ clusters
-    else:
-        clustering_efficiency = 0
-        diversity_score = 0
-
-    # Get size distribution
-    cluster_sizes = [len(cluster["articles"]) for cluster in clusters.values()]
-    avg_size = sum(cluster_sizes) / len(cluster_sizes) if cluster_sizes else 0
-
-    # Theme and location diversity
-    theme_distribution = get_cluster_themes_distribution(data)
-    location_distribution = get_cluster_location_distribution(data)
+    cluster_sizes = [
+        len(cluster_data.get("articles", [])) for cluster_data in clusters.values()
+    ]
+    cluster_sizes.sort(reverse=True)
+    total_articles = sum(cluster_sizes)
 
     return {
+        "total_clusters": len(clusters),
         "total_articles": total_articles,
-        "cluster_count": cluster_count,
-        "average_cluster_size": avg_size,
-        "clustering_efficiency": clustering_efficiency,
-        "diversity_score": diversity_score,
-        "theme_diversity": len(theme_distribution),
-        "location_diversity": len(location_distribution),
-        "top_themes": dict(
-            sorted(theme_distribution.items(), key=lambda x: x[1], reverse=True)[:5]
+        "largest_cluster": max(cluster_sizes) if cluster_sizes else 0,
+        "average_cluster_size": (
+            sum(cluster_sizes) / len(cluster_sizes) if cluster_sizes else 0
         ),
-        "top_locations": dict(
-            sorted(location_distribution.items(), key=lambda x: x[1], reverse=True)[:5]
+        "clusters_with_10_plus": sum(1 for size in cluster_sizes if size >= 10),
+        "clusters_with_50_plus": sum(1 for size in cluster_sizes if size >= 50),
+        "coverage_percentage": (
+            (total_articles / combined_data.get("total_hits", 1)) * 100
+            if combined_data.get("total_hits")
+            else 0
         ),
     }

@@ -18,81 +18,86 @@ def create_intent_analysis_prompt(user_input: str) -> List[base.Message]:
         List of Message objects for MCP prompt
     """
 
-    system_message = """You are a search intent analysis expert specializing in news and information discovery. Analyze user input to understand the complete search context and requirements.
+    system_message = """
+    You are a search intent analysis expert specializing in news and information discovery. 
+    Analyze user input to understand the complete search context and requirements.
 
-ANALYSIS FRAMEWORK:
+    ANALYSIS FRAMEWORK:
 
-1. **Domain Classification**
-   - Primary industry/sector (Technology, Business, Politics, Health, etc.)
-   - Secondary domains if applicable
-   - Cross-domain implications
+    1. **Domain Classification**
+    - Primary industry/sector (Technology, Business, Politics, Health, etc.)
+    - Secondary domains if applicable
+    - Cross-domain implications
 
-2. **Entity Extraction**
-   - Companies, organizations, institutions
-   - People, executives, public figures  
-   - Geographic locations (cities, states, regions)
-   - Events, initiatives, programs
-   - Products, services, technologies
+    2. **Entity Extraction**
+    - Companies, organizations, institutions
+    - People, executives, public figures  
+    - Geographic locations (cities, states, regions)
+    - Events, initiatives, programs
+    - Products, services, technologies
 
-3. **Intent Categories**
-   - Information seeking (what, who, where, when, how)
-   - Monitoring (ongoing developments, trends)
-   - Analysis (impact, implications, comparisons)
-   - Crisis/Alert (breaking news, emergencies)
-   - Research (background, historical context)
+    3. **Intent Categories**
+    - Information seeking (what, who, where, when, how)
+    - Monitoring (ongoing developments, trends)
+    - Analysis (impact, implications, comparisons)
+    - Crisis/Alert (breaking news, emergencies)
+    - Research (background, historical context)
 
-4. **Temporal Sensitivity**
-   - Breaking/Real-time (within hours)
-   - Recent (days to weeks)
-   - Trending (weeks to months)
-   - Historical (months to years)
-   - Predictive (future implications)
+    4. **Temporal Sensitivity**
+    - Breaking/Real-time (within hours)
+    - Recent (days to weeks)
+    - Trending (weeks to months)
+    - Historical (months to years)
+    - Predictive (future implications)
 
-5. **Geographic Scope**
-   - Hyperlocal (neighborhood, district)
-   - Local (city, metropolitan area)
-   - Regional (state, multi-state area)
-   - National (country-wide)
-   - International (global implications)
+    5. **Geographic Scope**
+    - Hyperlocal (neighborhood, district)
+    - Local (city, metropolitan area)
+    - Regional (state, multi-state area)
+    - National (country-wide)
+    - International (global implications)
 
-6. **Information Depth**
-   - Headlines only
-   - Summary coverage
-   - Detailed analysis
-   - Comprehensive research
-   - Expert commentary
+    6. **Information Depth**
+    - Headlines only
+    - Summary coverage
+    - Detailed analysis
+    - Comprehensive research
+    - Expert commentary
 
-7. **Sentiment Interest**
-   - Neutral reporting
-   - Positive developments
-   - Negative impacts/risks
-   - Controversial issues
-   - Crisis situations
+    7. **Sentiment Interest**
+    - Neutral reporting
+    - Positive developments
+    - Negative impacts/risks
+    - Controversial issues
+    - Crisis situations
 
-OUTPUT FORMAT:
-Provide structured analysis:
-- Primary Domain: [main category]
-- Key Entities: [companies, people, places, events]
-- Intent Type: [information/monitoring/analysis/crisis/research]
-- Time Sensitivity: [breaking/recent/trending/historical]
-- Geographic Focus: [hyperlocal/local/regional/national/international]
-- Information Depth: [headlines/summary/detailed/comprehensive]
-- Sentiment Preference: [neutral/positive/negative/controversial/crisis]
-- Search Complexity: [simple/moderate/complex]
-- Recommended Approach: [workflow suggestions]"""
+    OUTPUT FORMAT:
+    Provide structured analysis:
+    - Primary Domain: [main category]
+    - Key Entities: [companies, people, places, events]
+    - Intent Type: [information/monitoring/analysis/crisis/research]
+    - Time Sensitivity: [breaking/recent/trending/historical]
+    - Geographic Focus: [hyperlocal/local/regional/national/international]
+    - Information Depth: [headlines/summary/detailed/comprehensive]
+    - Sentiment Preference: [neutral/positive/negative/controversial/crisis]
+    - Search Complexity: [simple/moderate/complex]
+    - Recommended Approach: [workflow suggestions]
+    """
 
-    user_message = f"""Analyze this search input comprehensively:
+    user_message = f"""
+    Analyze this search input comprehensively:
 
-INPUT: "{user_input}"
+    INPUT: "{user_input}"
 
-Provide a complete intent analysis that will inform query enhancement and search strategy. Consider:
-- What is the user really trying to understand or discover?
-- What context might they be missing?
-- What related aspects should be considered?
-- How urgent or time-sensitive is this query?
-- What level of detail are they likely seeking?"""
+    Provide a complete intent analysis that will inform query enhancement and search strategy. Consider:
+    - What is the user really trying to understand or discover?
+    - What context might they be missing?
+    - What related aspects should be considered?
+    - How urgent or time-sensitive is this query?
+    - What level of detail are they likely seeking?
+    """
 
-    return [base.SystemMessage(system_message), base.UserMessage(user_message)]
+    return [base.UserMessage(system_message), base.UserMessage(user_message)]
 
 
 def create_domain_analysis_prompt(
@@ -116,28 +121,32 @@ def create_domain_analysis_prompt(
         "healthcare": """Key areas: Public health, medical research, healthcare policy, hospital systems, pharmaceutical developments, health technology, regulatory approvals, clinical trials, health emergencies, healthcare access""",
     }
 
-    system_message = f"""You are a domain expert in {domain.title()} with deep knowledge of industry dynamics, key players, and critical developments.
+    system_message = f"""
+    You are a domain expert in {domain.title()} with deep knowledge of industry dynamics, key players, and critical developments.
 
-DOMAIN EXPERTISE:
-{domain_expertise.get(domain.lower(), "General domain analysis focusing on key industry factors, major players, regulatory environment, and market dynamics.")}
+    DOMAIN EXPERTISE:
+    {domain_expertise.get(domain.lower(), "General domain analysis focusing on key industry factors, major players, regulatory environment, and market dynamics.")}
 
-Your role is to provide sophisticated domain context that enhances search capabilities for {domain} news discovery."""
+    Your role is to provide sophisticated domain context that enhances search capabilities for {domain} news discovery.
+    """
 
-    user_message = f"""Provide domain expertise for {domain} news searches.
+    user_message = f"""
+    Provide domain expertise for {domain} news searches.
 
-SPECIFIC CONTEXT: {specific_context}
+    SPECIFIC CONTEXT: {specific_context}
 
-Include:
-- Key terminology and industry jargon
-- Major players and organizations to consider
-- Typical news patterns and cycles
-- Important regulatory or market factors
-- Related domains that often intersect
-- Common search refinements for this domain
+    Include:
+    - Key terminology and industry jargon
+    - Major players and organizations to consider
+    - Typical news patterns and cycles
+    - Important regulatory or market factors
+    - Related domains that often intersect
+    - Common search refinements for this domain
 
-This analysis will inform query enhancement for more relevant news discovery."""
+    This analysis will inform query enhancement for more relevant news discovery.
+    """
 
-    return [base.SystemMessage(system_message), base.UserMessage(user_message)]
+    return [base.UserMessage(system_message), base.UserMessage(user_message)]
 
 
 def create_competitive_analysis_prompt(
@@ -153,22 +162,27 @@ def create_competitive_analysis_prompt(
         List of Message objects for MCP prompt
     """
 
-    system_message = """You are a competitive intelligence analyst specializing in news-based market analysis. Provide strategic guidance for tracking competitive developments through local and industry news."""
+    system_message = """
+    You are a competitive intelligence analyst specializing in news-based market analysis. 
+    Provide strategic guidance for tracking competitive developments through local and industry news.
+    """
 
-    user_message = f"""Design a competitive analysis approach for tracking these companies through news:
+    user_message = f"""
+    Design a competitive analysis approach for tracking these companies through news:
 
-COMPANIES: {', '.join(companies)}
-ANALYSIS FOCUS: {analysis_focus}
+    COMPANIES: {', '.join(companies)}
+    ANALYSIS FOCUS: {analysis_focus}
 
-Recommend:
-- Key search terms and query strategies
-- Important news categories to monitor
-- Geographic markets to focus on
-- Timing and frequency considerations
-- Competitive intelligence indicators to track
-- Alert triggers for significant developments"""
+    Recommend:
+    - Key search terms and query strategies
+    - Important news categories to monitor
+    - Geographic markets to focus on
+    - Timing and frequency considerations
+    - Competitive intelligence indicators to track
+    - Alert triggers for significant developments
+    """
 
-    return [base.SystemMessage(system_message), base.UserMessage(user_message)]
+    return [base.UserMessage(system_message), base.UserMessage(user_message)]
 
 
 def create_market_research_prompt(
@@ -185,23 +199,28 @@ def create_market_research_prompt(
         List of Message objects for MCP prompt
     """
 
-    system_message = """You are a market research analyst specializing in news-based industry intelligence. Design comprehensive research strategies using local news sources for market insights."""
+    system_message = """
+    You are a market research analyst specializing in news-based industry intelligence. 
+    Design comprehensive research strategies using local news sources for market insights.
+    """
 
-    user_message = f"""Design a market research approach for this industry:
+    user_message = f"""
+    Design a market research approach for this industry:
 
-INDUSTRY: {industry}
-RESEARCH OBJECTIVES: {', '.join(research_objectives)}
-GEOGRAPHIC SCOPE: {geographic_scope}
+    INDUSTRY: {industry}
+    RESEARCH OBJECTIVES: {', '.join(research_objectives)}
+    GEOGRAPHIC SCOPE: {geographic_scope}
 
-Provide:
-- Industry-specific search strategies
-- Key market indicators to track through news
-- Regional focus areas for local news monitoring
-- Timeline and frequency recommendations
-- Data collection and analysis frameworks
-- Early warning indicators for market shifts"""
+    Provide:
+    - Industry-specific search strategies
+    - Key market indicators to track through news
+    - Regional focus areas for local news monitoring
+    - Timeline and frequency recommendations
+    - Data collection and analysis frameworks
+    - Early warning indicators for market shifts
+    """
 
-    return [base.SystemMessage(system_message), base.UserMessage(user_message)]
+    return [base.UserMessage(system_message), base.UserMessage(user_message)]
 
 
 def create_crisis_monitoring_prompt(
@@ -220,23 +239,27 @@ def create_crisis_monitoring_prompt(
         List of Message objects for MCP prompt
     """
 
-    system_message = """You are a crisis monitoring specialist. Design early warning systems using local news sources to detect and assess emerging crisis situations."""
+    system_message = """You are a crisis monitoring specialist. 
+    Design early warning systems using local news sources to detect and assess emerging crisis situations.
+    """
 
-    user_message = f"""Design a crisis monitoring system for these parameters:
+    user_message = f"""
+    Design a crisis monitoring system for these parameters:
 
-ALERT KEYWORDS: {', '.join(alert_keywords)}
-GEOGRAPHIC AREAS: {', '.join(geographic_areas)}
-SEVERITY INDICATORS: {', '.join(severity_indicators)}
+    ALERT KEYWORDS: {', '.join(alert_keywords)}
+    GEOGRAPHIC AREAS: {', '.join(geographic_areas)}
+    SEVERITY INDICATORS: {', '.join(severity_indicators)}
 
-Recommend:
-- Early detection query strategies
-- Escalation triggers and thresholds
-- Geographic monitoring priorities
-- Source reliability assessment
-- Real-time alert mechanisms
-- Crisis severity classification system"""
+    Recommend:
+    - Early detection query strategies
+    - Escalation triggers and thresholds
+    - Geographic monitoring priorities
+    - Source reliability assessment
+    - Real-time alert mechanisms
+    - Crisis severity classification system
+    """
 
-    return [base.SystemMessage(system_message), base.UserMessage(user_message)]
+    return [base.UserMessage(system_message), base.UserMessage(user_message)]
 
 
 def create_trend_analysis_prompt(
@@ -253,7 +276,10 @@ def create_trend_analysis_prompt(
         List of Message objects for MCP prompt
     """
 
-    system_message = """You are a trend analysis expert specializing in pattern detection through news coverage. Identify emerging trends and forecast developments using local news intelligence."""
+    system_message = """
+    You are a trend analysis expert specializing in pattern detection through news coverage. 
+    Identify emerging trends and forecast developments using local news intelligence.
+    """
 
     indicators = trend_indicators or [
         "frequency",
@@ -262,18 +288,20 @@ def create_trend_analysis_prompt(
         "source diversity",
     ]
 
-    user_message = f"""Design a trend analysis approach for this topic:
+    user_message = f"""
+    Design a trend analysis approach for this topic:
 
-TOPIC: {topic}
-TIME HORIZON: {time_horizon}
-TREND INDICATORS: {', '.join(indicators)}
+    TOPIC: {topic}
+    TIME HORIZON: {time_horizon}
+    TREND INDICATORS: {', '.join(indicators)}
 
-Provide:
-- Trend detection methodologies
-- Key metrics and indicators to track
-- Geographic pattern analysis strategies
-- Temporal analysis frameworks
-- Signal vs noise filtering techniques
-- Predictive indicators for trend evolution"""
+    Provide:
+    - Trend detection methodologies
+    - Key metrics and indicators to track
+    - Geographic pattern analysis strategies
+    - Temporal analysis frameworks
+    - Signal vs noise filtering techniques
+    - Predictive indicators for trend evolution
+    """
 
-    return [base.SystemMessage(system_message), base.UserMessage(user_message)]
+    return [base.UserMessage(system_message), base.UserMessage(user_message)]
