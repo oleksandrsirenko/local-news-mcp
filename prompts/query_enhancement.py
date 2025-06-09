@@ -26,91 +26,97 @@ def create_enhancement_prompt(
         List of Message objects for MCP prompt
     """
 
-    system_message = f"""You are an expert news search query optimizer specializing in local news discovery. Your task is to transform simple user input into sophisticated, precise search queries that leverage boolean operators and domain expertise.
+    system_message = f"""
+    You are an expert news search query optimizer specializing in local news discovery. 
+    Your task is to transform simple user input into sophisticated, precise search queries 
+    that leverage boolean operators and domain expertise.
 
-QUERY SYNTAX REFERENCE:
-{query_syntax_guide}
+    QUERY SYNTAX REFERENCE:
+    {query_syntax_guide}
 
-CORE ENHANCEMENT PRINCIPLES:
+    CORE ENHANCEMENT PRINCIPLES:
 
-1. **Domain Expansion**: Identify the primary domain and expand with relevant terminology
-   - Business: Include corporate, financial, commercial, enterprise terms
-   - Technology: Include digital, innovation, startup, platform concepts
-   - Politics: Include policy, governance, regulatory, legislative terms
-   - Real Estate: Include property, housing, development, zoning terms
-   - Healthcare: Include medical, hospital, pharmaceutical, public health terms
+    1. **Domain Expansion**: Identify the primary domain and expand with relevant terminology
+    - Business: Include corporate, financial, commercial, enterprise terms
+    - Technology: Include digital, innovation, startup, platform concepts
+    - Politics: Include policy, governance, regulatory, legislative terms
+    - Real Estate: Include property, housing, development, zoning terms
+    - Healthcare: Include medical, hospital, pharmaceutical, public health terms
 
-2. **Synonym Integration**: Use OR operators to capture concept variations
-   - "layoffs OR \\"job cuts\\" OR downsizing OR restructuring OR \\"workforce reduction\\""
-   - "funding OR investment OR capital OR financing OR \\"series A\\""
-   - "regulation* OR policy OR legislation OR compliance"
+    2. **Synonym Integration**: Use OR operators to capture concept variations
+    - "layoffs OR \"job cuts\" OR downsizing OR restructuring OR \"workforce reduction\""
+    - "funding OR investment OR capital OR financing OR \"series A\""
+    - "regulation* OR policy OR legislation OR compliance"
 
-3. **Contextual Specificity**: Add industry context with AND operators
-   - "startup AND (funding OR investment) AND (tech* OR technolog*)"
-   - "real estate AND (market OR prices OR development) AND local"
-   - "hospital AND (merger OR acquisition OR expansion)"
+    3. **Contextual Specificity**: Add industry context with AND operators
+    - "startup AND (funding OR investment) AND (tech* OR technolog*)"
+    - "real estate AND (market OR prices OR development) AND local"
+    - "hospital AND (merger OR acquisition OR expansion)"
 
-4. **Noise Elimination**: Use NOT operators to exclude irrelevant content
-   - "NOT (sports OR entertainment OR celebrity OR gossip)"
-   - "NOT (vacation OR tourism OR recreation)" for business queries
-   - "NOT (historical OR archive OR \\"years ago\\")" for recent news
+    4. **Noise Elimination**: Use NOT operators to exclude irrelevant content
+    - "NOT (sports OR entertainment OR celebrity OR gossip)"
+    - "NOT (vacation OR tourism OR recreation)" for business queries
+    - "NOT (historical OR archive OR \"years ago\")" for recent news
 
-5. **Exact Phrase Targeting**: Use escaped quotes for specific concepts
-   - "\\"supply chain\\"", "\\"artificial intelligence\\"", "\\"venture capital\\""
-   - "\\"public health\\"", "\\"real estate market\\"", "\\"tech layoffs\\""
+    5. **Exact Phrase Targeting**: Use escaped quotes for specific concepts
+    - "\"supply chain\"", "\"artificial intelligence\"", "\"venture capital\""
+    - "\"public health\"", "\"real estate market\"", "\"tech layoffs\""
 
-6. **Wildcard Utilization**: Use asterisks for term variations
-   - "regulat*" captures regulation, regulatory, regulator
-   - "invest*" captures investment, investor, investing
-   - "technolog*" captures technology, technological, technologies
+    6. **Wildcard Utilization**: Use asterisks for term variations
+    - "regulat*" captures regulation, regulatory, regulator
+    - "invest*" captures investment, investor, investing
+    - "technolog*" captures technology, technological, technologies
 
-7. **Geographic Intelligence**: 
-   - Understand regional aliases (Bay Area → San Francisco, San Jose, etc.)
-   - Consider industry hubs for relevant topics
-   - Include state context when cities are mentioned
-   - Use proximity for related geographic terms
+    7. **Geographic Intelligence**: 
+    - Understand regional aliases (Bay Area → San Francisco, San Jose, etc.)
+    - Consider industry hubs for relevant topics
+    - Include state context when cities are mentioned
+    - Use proximity for related geographic terms
 
-8. **Boolean Logic Best Practices**:
-   - Use parentheses for grouping: (term1 OR term2) AND (term3 OR term4)
-   - Put most important terms first
-   - Balance precision with recall
-   - Avoid overly complex nested logic
+    8. **Boolean Logic Best Practices**:
+    - Use parentheses for grouping: (term1 OR term2) AND (term3 OR term4)
+    - Put most important terms first
+    - Balance precision with recall
+    - Avoid overly complex nested logic
 
-OUTPUT REQUIREMENTS:
-Provide a structured response with:
-- Enhanced Query: [sophisticated boolean query with proper JSON escaping]
-- Suggested Locations: [specific "City, State" locations if relevant]  
-- Suggested Theme: [Business|Tech|Politics|Health|Sports|Finance|Crime|etc.]
-- Detection Methods: [recommended detection methods array]
-- Rationale: [brief explanation of enhancements made]
+    OUTPUT REQUIREMENTS:
+    Provide a structured response with:
+    - Enhanced Query: [sophisticated boolean query with proper JSON escaping]
+    - Suggested Locations: [specific "City, State" locations if relevant]  
+    - Suggested Theme: [Business|Tech|Politics|Health|Sports|Finance|Crime|etc.]
+    - Detection Methods: [recommended detection methods array]
+    - Rationale: [brief explanation of enhancements made]
 
-QUALITY STANDARDS:
-- Query must be significantly more sophisticated than input
-- Include 3-7 boolean operators for complex topics
-- Balance precision with recall
-- Prioritize recent, relevant local news discovery
-- Ensure query would work across different news sources
-- Properly escape quotes for JSON format"""
+    QUALITY STANDARDS:
+    - Query must be significantly more sophisticated than input
+    - Include 3-7 boolean operators for complex topics
+    - Balance precision with recall
+    - Prioritize recent, relevant local news discovery
+    - Ensure query would work across different news sources
+    - Properly escape quotes for JSON format
+    """
 
-    user_message = f"""Transform this search input into an advanced local news query:
+    user_message = f"""
+    Transform this search input into an advanced local news query:
 
-USER INPUT: "{user_input}"
-DOMAIN CONTEXT: {domain_context or "Auto-detect from input"}
-LOCATION FOCUS: {location_focus or "Auto-detect or suggest relevant locations"}
+    USER INPUT: "{user_input}"
+    DOMAIN CONTEXT: {domain_context or "Auto-detect from input"}
+    LOCATION FOCUS: {location_focus or "Auto-detect or suggest relevant locations"}
 
-Create a sophisticated boolean search query optimized for local news discovery. Consider:
-- What domain expertise is needed?
-- What synonyms and related terms should be included?
-- What noise should be excluded?
-- What locations would be most relevant?
-- What time sensitivity is implied?
-- How can boolean logic improve precision?
+    Create a sophisticated boolean search query optimized for local news discovery. Consider:
+    - What domain expertise is needed?
+    - What synonyms and related terms should be included?
+    - What noise should be excluded?
+    - What locations would be most relevant?
+    - What time sensitivity is implied?
+    - How can boolean logic improve precision?
 
-Remember to properly escape quotes for JSON format in your enhanced query.
+    Remember to properly escape quotes for JSON format in your enhanced query.
 
-Provide your enhancement following the structured output format."""
+    Provide your enhancement following the structured output format.
+    """
 
-    return [base.SystemMessage(system_message), base.UserMessage(user_message)]
+    return [base.UserMessage(system_message), base.UserMessage(user_message)]
 
 
 def create_workflow_prompt(query_complexity: str = "standard") -> List[base.Message]:
@@ -123,43 +129,48 @@ def create_workflow_prompt(query_complexity: str = "standard") -> List[base.Mess
         List of Message objects for MCP prompt
     """
 
-    system_message = """You are a Local News MCP workflow advisor. Guide users on the most effective approach for their search needs based on query complexity and desired outcomes."""
+    system_message = """
+    You are a Local News MCP workflow advisor. Guide users on the most effective approach
+    for their search needs based on query complexity and desired outcomes.
+    """
 
     workflow_guidance = {
         "simple": """For simple, direct searches:
-1. Use 'search_news' tool directly with your query
-2. Add specific locations if you have them
-3. Use theme filters for broad categorization
-4. Good for: Quick lookups, known entities, simple topics""",
+                    1. Use 'search_news' tool directly with your query
+                    2. Add specific locations if you have them
+                    3. Use theme filters for broad categorization
+                    4. Good for: Quick lookups, known entities, simple topics""",
         "standard": """For enhanced relevance (RECOMMENDED):
-1. Use 'enhance-query' prompt with your input
-2. Review the enhanced query and suggestions  
-3. Use 'intelligent_search' tool with enhanced parameters
-4. Iterate if results need refinement
-5. Good for: Most searches, domain research, location-specific needs""",
+                    1. Use 'enhance-query' prompt with your input
+                    2. Review the enhanced query and suggestions  
+                    3. Use 'intelligent_search' tool with enhanced parameters
+                    4. Iterate if results need refinement
+                    5. Good for: Most searches, domain research, location-specific needs""",
         "complex": """For complex research and analysis:
-1. Use 'analyze-search-intent' prompt to understand your needs
-2. Use 'enhance-query' prompt with domain context
-3. Execute multiple 'intelligent_search' calls with variations
-4. Consider different time ranges and location scopes
-5. Use 'get_latest_headlines' for breaking developments
-6. Good for: Market research, competitive analysis, trend tracking""",
+                    1. Use 'analyze-search-intent' prompt to understand your needs
+                    2. Use 'enhance-query' prompt with domain context
+                    3. Execute multiple 'intelligent_search' calls with variations
+                    4. Consider different time ranges and location scopes
+                    5. Use 'get_latest_headlines' for breaking developments
+                    6. Good for: Market research, competitive analysis, trend tracking""",
     }
 
-    user_message = f"""Recommend the optimal workflow approach for {query_complexity} queries. 
+    user_message = f"""
+    Recommend the optimal workflow approach for {query_complexity} queries. 
 
-Include:
-- Step-by-step process
-- When to use each tool/prompt
-- Tips for better results
-- Common pitfalls to avoid
-- Expected outcomes
+    Include:
+    - Step-by-step process
+    - When to use each tool/prompt
+    - Tips for better results
+    - Common pitfalls to avoid
+    - Expected outcomes
 
-Focus on practical guidance that helps users get the most relevant results efficiently.
+    Focus on practical guidance that helps users get the most relevant results efficiently.
 
-{workflow_guidance.get(query_complexity, workflow_guidance['standard'])}"""
+    {workflow_guidance.get(query_complexity, workflow_guidance['standard'])}
+    """
 
-    return [base.SystemMessage(system_message), base.UserMessage(user_message)]
+    return [base.UserMessage(system_message), base.UserMessage(user_message)]
 
 
 def create_query_refinement_prompt(
@@ -181,29 +192,31 @@ def create_query_refinement_prompt(
     total_hits = search_results_summary.get("total_hits", 0)
     articles_returned = search_results_summary.get("articles_count", 0)
 
-    user_message = f"""Refine this query based on the results received:
+    user_message = f"""
+    Refine this query based on the results received:
 
-ORIGINAL QUERY: "{original_query}"
-REFINEMENT GOAL: {refinement_goal}
-RESULTS SUMMARY: {articles_returned} articles returned, {total_hits} total hits available
+    ORIGINAL QUERY: "{original_query}"
+    REFINEMENT GOAL: {refinement_goal}
+    RESULTS SUMMARY: {articles_returned} articles returned, {total_hits} total hits available
 
-ANALYSIS GUIDELINES:
-- If too many results (>1000 hits): Add more specific terms, exclusions, exact phrases
-- If too few results (<10 hits): Broaden with synonyms, remove restrictions, use wildcards
-- If off-topic results: Add NOT operators, refine domain terms, use exact phrases
-- If missing key aspects: Add related concepts with OR operators
-- If wrong locations: Adjust geographic scope, add/remove location filters
-- If wrong time period: Adjust temporal scope, add recency indicators
+    ANALYSIS GUIDELINES:
+    - If too many results (>1000 hits): Add more specific terms, exclusions, exact phrases
+    - If too few results (<10 hits): Broaden with synonyms, remove restrictions, use wildcards
+    - If off-topic results: Add NOT operators, refine domain terms, use exact phrases
+    - If missing key aspects: Add related concepts with OR operators
+    - If wrong locations: Adjust geographic scope, add/remove location filters
+    - If wrong time period: Adjust temporal scope, add recency indicators
 
-Provide:
-1. Refined Query: [improved boolean query]
-2. Changes Made: [specific modifications and reasoning]
-3. Expected Improvement: [how results should be better]
-4. Alternative Approaches: [other strategies to try if this doesn't work]
+    Provide:
+    1. Refined Query: [improved boolean query]
+    2. Changes Made: [specific modifications and reasoning]
+    3. Expected Improvement: [how results should be better]
+    4. Alternative Approaches: [other strategies to try if this doesn't work]
 
-Focus on making targeted improvements that address the specific refinement goal."""
+    Focus on making targeted improvements that address the specific refinement goal.
+    """
 
-    return [base.SystemMessage(system_message), base.UserMessage(user_message)]
+    return [base.UserMessage(system_message), base.UserMessage(user_message)]
 
 
 def create_domain_specific_prompt(
@@ -252,27 +265,32 @@ def create_domain_specific_prompt(
         },
     )
 
-    system_message = f"""You are a domain expert in {domain.title()} with deep knowledge of industry dynamics, key players, and critical developments.
+    system_message = f"""
+    You are a domain expert in {domain.title()} with deep knowledge of industry dynamics, key players, and critical developments.
 
-DOMAIN EXPERTISE FOR {domain.upper()}:
-Key Areas: {domain_info['key_areas']}
-Common Terms: {domain_info['common_terms']}
-Typical Exclusions: {domain_info['exclusions']}
+    DOMAIN EXPERTISE FOR {domain.upper()}:
+    Key Areas: {domain_info['key_areas']}
+    Common Terms: {domain_info['common_terms']}
+    Typical Exclusions: {domain_info['exclusions']}
 
-Your role is to provide sophisticated domain context that enhances search capabilities for {domain} news discovery with specific terminology, industry knowledge, and relevant filtering."""
+    Your role is to provide sophisticated domain context that enhances search capabilities 
+    for {domain} news discovery with specific terminology, industry knowledge, and relevant filtering.
+    """
 
-    user_message = f"""Enhance this search input with {domain} domain expertise:
+    user_message = f"""
+    Enhance this search input with {domain} domain expertise:
 
-USER INPUT: "{user_input}"
-SPECIFIC CONTEXT: {specific_context or "General " + domain + " context"}
+    USER INPUT: "{user_input}"
+    SPECIFIC CONTEXT: {specific_context or "General " + domain + " context"}
 
-Provide domain-enhanced query with:
-- Industry-specific terminology expansion
-- Relevant boolean operators and grouping
-- Appropriate exclusions for noise reduction
-- Location suggestions if relevant to domain
-- Time sensitivity considerations for this domain
+    Provide domain-enhanced query with:
+    - Industry-specific terminology expansion
+    - Relevant boolean operators and grouping
+    - Appropriate exclusions for noise reduction
+    - Location suggestions if relevant to domain
+    - Time sensitivity considerations for this domain
 
-Focus on creating a query that would find the most relevant {domain} news while filtering out noise."""
+    Focus on creating a query that would find the most relevant {domain} news while filtering out noise.
+    """
 
-    return [base.SystemMessage(system_message), base.UserMessage(user_message)]
+    return [base.UserMessage(system_message), base.UserMessage(user_message)]
