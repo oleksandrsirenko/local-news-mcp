@@ -17,7 +17,12 @@ from prompts import (
 )
 
 # Import formatting utilities
-from utils import format_search_results_simple
+from utils import (
+    format_search_results_simple,
+    format_search_results_enhanced,
+    format_clustered_results,
+    format_error_message,
+)
 
 # Import clustering utilities
 from utils.clustering import (
@@ -164,7 +169,7 @@ async def intelligent_search(
     page_size: int = 1000,
     clustering: bool = True,
     original_query: str = "",
-) -> dict:
+) -> str:  # FIXED: Return string instead of dict
     """Execute search with configurable clustering and pagination.
 
     Args:
@@ -182,7 +187,7 @@ async def intelligent_search(
         original_query: Original user input before enhancement.
 
     Returns:
-        Dict with structured search results for MCP client analysis.
+        Formatted string with search results for MCP client display.
     """
 
     # Build search payload with configurable parameters
@@ -200,6 +205,19 @@ async def intelligent_search(
     if detection_methods:
         payload["detection_methods"] = detection_methods
 
+    # Prepare enhancement info for formatting
+    enhancement_info = {
+        "original": original_query,
+        "enhanced": enhanced_query,
+        "rationale": f"Enhanced query with boolean operators and domain expertise",
+    }
+    if locations:
+        enhancement_info["suggested_locations"] = locations
+    if theme:
+        enhancement_info["suggested_theme"] = theme
+    if detection_methods:
+        enhancement_info["detection_methods"] = detection_methods
+
     # Fetch results - handle both clustered and non-clustered
     try:
         if clustering:
@@ -212,99 +230,70 @@ async def intelligent_search(
             combined_data = await make_news_request("/api/search", payload)
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": f"Search request failed: {str(e)}",
-            "query_info": {
-                "original_query": original_query,
-                "enhanced_query": enhanced_query,
-                "clustering_enabled": clustering,
-            },
-        }
+        return format_error_message(
+            "Search Request Failed",
+            f"API request failed: {str(e)}",
+            suggestions=[
+                "Check your internet connection",
+                "Verify API key is configured correctly",
+                "Try simplifying the search query",
+                "Reduce the number of locations or remove theme filters",
+            ],
+        )
 
     if not combined_data:
-        return {
-            "success": False,
-            "error": "No results found",
-            "query_info": {
-                "original_query": original_query,
-                "enhanced_query": enhanced_query,
-                "clustering_enabled": clustering,
-            },
-        }
-
-    # Process results based on clustering mode
-    if clustering and combined_data.get("clusters"):
-        # Clustered results processing
-        cluster_representatives = extract_cluster_representatives(
-            combined_data, max_representatives=max_clusters
+        return format_error_message(
+            "No Results Found",
+            "The search request returned no data",
+            suggestions=[
+                "Try broadening your search terms",
+                "Remove location or theme filters",
+                "Check if the time range is appropriate",
+                "Use the 'enhance-query' prompt for better results",
+            ],
         )
-        cluster_analysis = get_cluster_analysis(combined_data)
 
-        return {
-            "success": True,
-            "search_type": "clustered",
-            "query_info": {
-                "original_query": original_query,
-                "enhanced_query": enhanced_query,
-                "clustering_enabled": True,
-            },
-            "results": {
-                "total_hits": combined_data.get("total_hits", 0),
-                "total_clusters": len(combined_data.get("clusters", {})),
-                "clusters_returned": len(cluster_representatives),
-                "articles_processed": combined_data.get("pagination_info", {}).get(
-                    "total_articles_processed", 0
-                ),
-                "coverage_percentage": cluster_analysis.get("coverage_percentage", 0),
-                "cluster_representatives": cluster_representatives,
-            },
-            "clustering_analysis": cluster_analysis,
-            "pagination_info": combined_data.get("pagination_info", {}),
-            "metadata": {
-                "search_params": {
-                    "locations": locations,
-                    "theme": theme,
-                    "detection_methods": detection_methods,
-                    "from": from_,
-                    "page_size": page_size,
-                    "max_pages_used": max_pages,
-                },
-                "pages_fetched": combined_data.get("pagination_info", {}).get(
-                    "pages_fetched", 1
-                ),
-                "total_pages_available": combined_data.get("total_pages", 1),
-            },
-        }
-    else:
-        # Non-clustered results processing
-        articles = combined_data.get("articles", [])
+    # FIXED: Process results and return formatted strings
+    try:
+        if clustering and combined_data.get("clusters"):
+            # Clustered results processing
+            cluster_representatives = extract_cluster_representatives(
+                combined_data, max_representatives=max_clusters
+            )
 
-        return {
-            "success": True,
-            "search_type": "standard",
-            "query_info": {
-                "original_query": original_query,
-                "enhanced_query": enhanced_query,
-                "clustering_enabled": False,
-            },
-            "results": {
-                "total_hits": combined_data.get("total_hits", 0),
-                "articles_returned": len(articles),
-                "articles": articles[:max_clusters],  # Limit articles if needed
-            },
-            "metadata": {
-                "search_params": {
-                    "locations": locations,
-                    "theme": theme,
-                    "detection_methods": detection_methods,
-                    "from": from_,
-                    "page_size": page_size,
-                },
-                "page": combined_data.get("page", 1),
-                "total_pages": combined_data.get("total_pages", 1),
-            },
-        }
+            # Store user input for metadata
+            combined_data["user_input"] = payload
+
+            # FIXED: Return formatted string instead of dict
+            return format_clustered_results(
+                combined_data,
+                cluster_representatives,
+                enhancement_info=enhancement_info,
+            )
+        else:
+            # Non-clustered results processing
+            articles = combined_data.get("articles", [])
+
+            # Limit articles if needed and store user input
+            combined_data["articles"] = articles[:max_clusters]
+            combined_data["user_input"] = payload
+
+            # FIXED: Return formatted string instead of dict
+            return format_search_results_enhanced(
+                combined_data, enhancement_info=enhancement_info
+            )
+
+    except Exception as e:
+        return format_error_message(
+            "Result Processing Failed",
+            f"Failed to process search results: {str(e)}",
+            suggestions=[
+                "Try reducing the max_clusters parameter",
+                "Disable clustering and try again",
+                "Check the server logs for more details",
+                "Contact support if the issue persists",
+            ],
+        )
 
 
 @mcp.tool()
