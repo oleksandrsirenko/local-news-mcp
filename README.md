@@ -134,6 +134,20 @@ Reference materials that Claude can use for context when helping you.
    - Use `domain-expertise` prompt for specialized research
    - Ask follow-up questions - Claude will use tools automatically
 
+## Testing
+
+### Run all tests
+
+```bash
+./test_runner.sh
+```
+
+### Test with MCP Inspector
+
+```bash
+npx @modelcontextprotocol/inspector uv --directory . run main.py
+```
+
 ## 🛠 Troubleshooting
 
 ### "spawn uv ENOENT" Error
